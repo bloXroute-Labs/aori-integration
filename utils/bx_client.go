@@ -11,8 +11,6 @@ import (
 	"log"
 )
 
-var Gateway_Endpoint = "localhost:5005"
-
 type blxrCredentials struct {
 	authorization string
 }

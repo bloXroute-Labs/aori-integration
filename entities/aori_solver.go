@@ -306,7 +306,11 @@ func (s *AoriSolver) connectToBxGateway() {
 
 			intent.IntentID = swapIntentData.IntentId
 
-			if intent.AoriMakerOrder.Result.Type == "OrderCreated" && intent.AoriMakerOrder.Result.Data.ChainId == 5 { //&& ((intent.AoriMakerOrder.Result.Data.InputToken == "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6" && intent.AoriMakerOrder.Result.Data.OutputToken == "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984") || (intent.AoriMakerOrder.Result.Data.InputToken == "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984" && intent.AoriMakerOrder.Result.Data.OutputToken == "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6")) {
+			if intent.AoriMakerOrder.Result.Type == "OrderCreated" && intent.AoriMakerOrder.Result.Data.ChainId == 5 {
+				//&&
+				//	((intent.AoriMakerOrder.Result.Data.InputToken == "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6" && intent.AoriMakerOrder.Result.Data.OutputToken == "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984") || (intent.AoriMakerOrder.Result.Data.InputToken == "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984" && intent.AoriMakerOrder.Result.Data.OutputToken == "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6") ||
+				//		(intent.AoriMakerOrder.Result.Data.InputToken == "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6" && intent.AoriMakerOrder.Result.Data.OutputToken == "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6") || (intent.AoriMakerOrder.Result.Data.InputToken == "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984" && intent.AoriMakerOrder.Result.Data.OutputToken == "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"))
+
 				s.incomingAoriIntentFromGateway <- intent
 			} else {
 				continue
@@ -323,6 +327,7 @@ func (s *AoriSolver) connectToBxGateway() {
 			offers := makeOrderIntent.AoriMakerOrder.Result.Data.Order.Parameters.Offer
 			makeOrderIntent.AoriMakerOrder.Result.Data.Order.Parameters.Offerer = s.solverAddress
 			var newConsiderations []ConsiderationDetail
+
 			for i := range offers {
 				newConsiderations = append(newConsiderations, ConsiderationDetail{
 					ItemType:             offers[i].ItemType,
@@ -341,8 +346,8 @@ func (s *AoriSolver) connectToBxGateway() {
 					ItemType:             considerations[i].ItemType,
 					Token:                considerations[i].Token,
 					IdentifierOrCriteria: considerations[i].IdentifierOrCriteria,
-					StartAmount:          considerations[i].StartAmount,
-					EndAmount:            considerations[i].EndAmount,
+					StartAmount:          addFee(considerations[i].StartAmount),
+					EndAmount:            addFee(considerations[i].EndAmount),
 				})
 			}
 			makeOrderIntent.AoriMakerOrder.Result.Data.Order.Parameters.Consideration = newConsiderations
@@ -416,6 +421,15 @@ func toInt(str string) *big.Int {
 	return big.NewInt(int64(num))
 }
 
+func addFee(str string) string {
+	num, err := strconv.ParseFloat(str, 64)
+	if err != nil {
+		panic(err)
+	}
+	num = num * 1.0003
+	return big.NewInt(int64(num)).String()
+}
+
 func signOrder(privateKey *ecdsa.PrivateKey, order *AoriTakeOrderIntent, chainID int64) (string, error) {
 	domain := eip712.TypedDataDomain{
 		Name:              "Seaport",
@@ -485,7 +499,6 @@ func signOrder(privateKey *ecdsa.PrivateKey, order *AoriTakeOrderIntent, chainID
 	}
 
 	str := hexutil.Encode(sig)
-	sig[64] += 27
 	return str, nil
 }
 
