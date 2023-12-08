@@ -13,6 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"math/rand"
+	"strings"
 	"time"
 
 	"github.com/ethersphere/bee/pkg/crypto/eip712"
@@ -287,8 +288,6 @@ func (s *AoriSolver) connectToBxGateway() {
 				continue
 			}
 
-			s.log.Printf("received make order payload from aori %s", string(swapIntentData.Intent))
-
 			intent := &AoriMakerOrderIntent{
 				IntentID: swapIntentData.IntentId,
 			}
@@ -298,18 +297,16 @@ func (s *AoriSolver) connectToBxGateway() {
 				s.log.Fatalf("failed to unmarshal swapIntentData: %w", err.Error())
 			}
 
-			s.log.Printf("received intent from gateway, intentID: %s, dAppAddress: %s, timestamp: %s, orderHash: %s",
-				swapIntentData.IntentId,
-				swapIntentData.DappAddress,
-				swapIntentData.Timestamp,
-				intent.AoriMakerOrder.Result.Data.OrderHash)
+			if intent.AoriMakerOrder.Result.Type == "OrderCreated" && intent.AoriMakerOrder.Result.Data.ChainId == 5 &&
+				hasRightToken(intent) {
 
-			intent.IntentID = swapIntentData.IntentId
+				s.log.Printf("received intent from gateway, intentID: %s, dAppAddress: %s, timestamp: %s, orderHash: %s",
+					swapIntentData.IntentId,
+					swapIntentData.DappAddress,
+					swapIntentData.Timestamp,
+					intent.AoriMakerOrder.Result.Data.OrderHash)
 
-			if intent.AoriMakerOrder.Result.Type == "OrderCreated" && intent.AoriMakerOrder.Result.Data.ChainId == 5 {
-				//&&
-				//	((intent.AoriMakerOrder.Result.Data.InputToken == "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6" && intent.AoriMakerOrder.Result.Data.OutputToken == "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984") || (intent.AoriMakerOrder.Result.Data.InputToken == "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984" && intent.AoriMakerOrder.Result.Data.OutputToken == "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6") ||
-				//		(intent.AoriMakerOrder.Result.Data.InputToken == "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6" && intent.AoriMakerOrder.Result.Data.OutputToken == "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6") || (intent.AoriMakerOrder.Result.Data.InputToken == "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984" && intent.AoriMakerOrder.Result.Data.OutputToken == "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984"))
+				intent.IntentID = swapIntentData.IntentId
 
 				s.incomingAoriIntentFromGateway <- intent
 			} else {
@@ -411,6 +408,14 @@ func (s *AoriSolver) connectToBxGateway() {
 			}
 		}
 	}()
+}
+
+func hasRightToken(intent *AoriMakerOrderIntent) bool {
+	i := strings.ToLower(intent.AoriMakerOrder.Result.Data.InputToken)
+	o := strings.ToLower(intent.AoriMakerOrder.Result.Data.OutputToken)
+	return (i == "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984" && o == "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6") ||
+		(i == "0xb4fbf271143f4fbf7b91a5ded31805e42b2208d6" && o == "0x1f9840a85d5af5bf1d1762f925bdaddc4201f984")
+
 }
 
 func toInt(str string) *big.Int {

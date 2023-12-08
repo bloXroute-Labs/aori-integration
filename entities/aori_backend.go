@@ -30,11 +30,11 @@ type AoriBackend struct {
 
 	gatewayClient gateway.GatewayClient
 
-	wsStagingConn   *websocket.Conn
+	wsFeedConn      *websocket.Conn
 	wsTakeOrderConn *websocket.Conn
 
 	// The channel where users send their swap intent operations
-	makeOrderIntents chan []byte
+	makeOrderFromAoriChan chan []byte
 
 	solutionChannel chan *AoriTakeOrderIntent
 
@@ -45,7 +45,7 @@ type AoriBackend struct {
 	dappAddress common.Address
 }
 
-func NewAoriBackend(pk string, chainId int64, solutionChannel chan []byte, shutdownChan chan struct{}) *AoriBackend {
+func NewAoriBackend(pk string, chainId int64, makeOrderChan chan []byte, shutdownChan chan struct{}) *AoriBackend {
 	logger := log.New(os.Stdout, "[BACKEND]\t", log.LstdFlags|log.Lmsgprefix|log.Lmicroseconds)
 
 	bundlerPrivateKey, err := crypto.ToECDSA(common.Hex2Bytes(pk))
@@ -58,7 +58,7 @@ func NewAoriBackend(pk string, chainId int64, solutionChannel chan []byte, shutd
 		logger.Fatalf("could not initialize user's signer: %s", err)
 	}
 
-	wsConn, err := connect(aoriStagingWSEndpoint, aoriAuthHeader)
+	wsFeedConn, err := connect(aoriStagingWSEndpoint, aoriAuthHeader)
 	if err != nil {
 		logger.Fatalf("could not initialize aori websocket connection: %s", err)
 	}
@@ -71,16 +71,16 @@ func NewAoriBackend(pk string, chainId int64, solutionChannel chan []byte, shutd
 	dappAddress := crypto.PubkeyToAddress(bundlerPrivateKey.PublicKey)
 
 	a := &AoriBackend{
-		bundlerSigner:     bundlerSigner,
-		wsStagingConn:     wsConn,
-		wsTakeOrderConn:   wsTakeOrderConn,
-		bundlerPrivateKey: bundlerPrivateKey,
-		dappAddress:       dappAddress,
-		makeOrderIntents:  solutionChannel,
-		solutionChannel:   make(chan *AoriTakeOrderIntent),
-		shutdownChan:      shutdownChan,
-		log:               logger,
-		intentCount:       0,
+		bundlerSigner:         bundlerSigner,
+		wsFeedConn:            wsFeedConn,
+		wsTakeOrderConn:       wsTakeOrderConn,
+		bundlerPrivateKey:     bundlerPrivateKey,
+		dappAddress:           dappAddress,
+		makeOrderFromAoriChan: makeOrderChan,
+		solutionChannel:       make(chan *AoriTakeOrderIntent),
+		shutdownChan:          shutdownChan,
+		log:                   logger,
+		intentCount:           0,
 	}
 
 	go a.run()
@@ -93,14 +93,14 @@ func (a *AoriBackend) GenerateMakeOrder(broadcastMakerOrdersChan chan []byte) {
 	a.log.Printf("generating an aori make order")
 
 	b := "{ \"id\": 12, \"jsonrpc\": \"2.0\", \"method\": \"aori_subscribeOrderbook\",\"params\": []}"
-	err := a.wsStagingConn.WriteMessage(websocket.TextMessage, []byte(b))
+	err := a.wsFeedConn.WriteMessage(websocket.TextMessage, []byte(b))
 	if err != nil {
 		// reconnect the websocket connection if connection read message fails
 		a.log.Fatal(err)
 	}
 
 	for {
-		_, msg, err := a.wsStagingConn.ReadMessage()
+		_, msg, err := a.wsFeedConn.ReadMessage()
 		if err != nil {
 			// reconnect the websocket connection if connection read message fails
 			log.Println("error when reading makeOrder", err)
@@ -157,9 +157,9 @@ func (a *AoriBackend) run() {
 		cancel := false
 
 		select {
-		case intent := <-a.makeOrderIntents:
+		case makeOrder := <-a.makeOrderFromAoriChan:
 			// this swap intent is coming from the user "makeOrderIntentsReceive" chan
-			intentHash := crypto.Keccak256Hash(intent).Bytes()             // need a hash to sign, so we're hashing the payload here
+			intentHash := crypto.Keccak256Hash(makeOrder).Bytes()          // need a hash to sign, so we're hashing the payload here
 			intentSig, err := crypto.Sign(intentHash, a.bundlerPrivateKey) //signing the hash
 			if err != nil {
 				log.Fatalf("could not sign the message : %s", err)
@@ -167,7 +167,7 @@ func (a *AoriBackend) run() {
 
 			intentRequest := &gateway.SubmitIntentRequest{
 				DappAddress: a.dappAddress.String(),
-				Intent:      intent,
+				Intent:      makeOrder,
 				Hash:        intentHash,
 				Signature:   intentSig,
 			}
@@ -222,6 +222,7 @@ func (a *AoriBackend) run() {
 					if err != nil {
 						// reconnect the websocket connection if connection read message fails
 						a.log.Printf("error when reading makeOrder", err)
+						time.Sleep(time.Second)
 						continue
 					}
 					a.log.Printf("message from aori %s", string(msg))

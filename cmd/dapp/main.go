@@ -15,17 +15,17 @@ func main() {
 
 	shutdownChan := make(chan struct{})
 
-	solutions := make(chan []byte)
+	makeOrderChan := make(chan []byte)
 	// Launch the backend goroutine
-	aoriBackend := entities.NewAoriBackend(app.PrivateKeys["bundler"], app.ChainId, solutions, shutdownChan)
+	aoriBackend := entities.NewAoriBackend(app.PrivateKeys["bundler"], app.ChainId, makeOrderChan, shutdownChan)
 
-	aoriBackend.GenerateMakeOrder(solutions)
+	aoriBackend.GenerateMakeOrder(makeOrderChan)
 
 	// CTRL + C to stop the program
 	<-interrupt
 
 	close(shutdownChan)
-	close(solutions)
+	close(makeOrderChan)
 
 }
 
