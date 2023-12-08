@@ -107,6 +107,8 @@ func (a *AoriBackend) GenerateMakeOrder(broadcastMakerOrdersChan chan []byte) {
 			continue
 		}
 
+		a.log.Printf("event from aori = %s", msg)
+
 		var order AoriMakeOrder
 		//var intent AoriMakerOrderIntent
 
