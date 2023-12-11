@@ -12,16 +12,15 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
-	"math/rand"
-	"strings"
-	"time"
-
-	"github.com/ethersphere/bee/pkg/crypto/eip712"
+	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 	"google.golang.org/grpc/metadata"
 	"log"
 	"math/big"
+	"math/rand"
 	"os"
 	"strconv"
+	"strings"
+	"time"
 )
 
 const (
@@ -149,24 +148,24 @@ type ConsiderationItem struct {
 	Type string `json:"type"`
 }
 
-var myTypes = make(eip712.Types)
+var myTypes = make(apitypes.Types)
 
 func init() {
-	myTypes["EIP712Domain"] = []eip712.Type{
+	myTypes["EIP712Domain"] = []apitypes.Type{
 		{Name: "name", Type: "string"},
 		{Name: "version", Type: "string"},
 		{Name: "chainId", Type: "uint256"},
 		{Name: "verifyingContract", Type: "address"},
 	}
 
-	myTypes["OfferItem"] = []eip712.Type{
+	myTypes["OfferItem"] = []apitypes.Type{
 		{Name: "itemType", Type: "uint8"},
 		{Name: "token", Type: "address"},
 		{Name: "identifierOrCriteria", Type: "uint256"},
 		{Name: "startAmount", Type: "uint256"},
 		{Name: "endAmount", Type: "uint256"},
 	}
-	myTypes["ConsiderationItem"] = []eip712.Type{
+	myTypes["ConsiderationItem"] = []apitypes.Type{
 		{Name: "itemType", Type: "uint8"},
 		{Name: "token", Type: "address"},
 		{Name: "identifierOrCriteria", Type: "uint256"},
@@ -174,7 +173,7 @@ func init() {
 		{Name: "endAmount", Type: "uint256"},
 		{Name: "recipient", Type: "address"},
 	}
-	myTypes["OrderComponents"] = []eip712.Type{
+	myTypes["OrderComponents"] = []apitypes.Type{
 		{Name: "offerer", Type: "address"},
 		{Name: "zone", Type: "address"},
 		{Name: "offer", Type: "OfferItem[]"},
@@ -299,12 +298,6 @@ func (s *AoriSolver) connectToBxGateway() {
 
 			if intent.AoriMakerOrder.Result.Type == "OrderCreated" && intent.AoriMakerOrder.Result.Data.ChainId == 5 &&
 				hasRightToken(intent) {
-
-				s.log.Printf("received intent from gateway, intentID: %s, dAppAddress: %s, timestamp: %s, orderHash: %s",
-					swapIntentData.IntentId,
-					swapIntentData.DappAddress,
-					swapIntentData.Timestamp,
-					intent.AoriMakerOrder.Result.Data.OrderHash)
 
 				intent.IntentID = swapIntentData.IntentId
 
@@ -436,7 +429,7 @@ func addFee(str string) string {
 }
 
 func signOrder(privateKey *ecdsa.PrivateKey, order *AoriTakeOrderIntent, chainID int64) (string, error) {
-	domain := eip712.TypedDataDomain{
+	domain := apitypes.TypedDataDomain{
 		Name:              "Seaport",
 		Version:           currentSeaportVersion,
 		ChainId:           math.NewHexOrDecimal256(chainID),
@@ -453,11 +446,11 @@ func signOrder(privateKey *ecdsa.PrivateKey, order *AoriTakeOrderIntent, chainID
 	if len(params.Offer) == 0 {
 		return "", fmt.Errorf("offer is required")
 	}
-	myMessage := make(eip712.TypedDataMessage)
+	myMessage := make(apitypes.TypedDataMessage)
 	myMessage["offerer"] = params.Offerer
 	myMessage["zone"] = params.Zone
 
-	myMessage["offer"] = make(eip712.TypedDataMessage)
+	myMessage["offer"] = make(apitypes.TypedDataMessage)
 	offerSlice := make([]map[string]interface{}, 0)
 	offerMap := map[string]interface{}{
 		"itemType":             big.NewInt(int64(params.Offer[0].ItemType)),
@@ -489,7 +482,7 @@ func signOrder(privateKey *ecdsa.PrivateKey, order *AoriTakeOrderIntent, chainID
 	myMessage["conduitKey"] = params.ConduitKey
 	myMessage["counter"] = params.Counter
 
-	typedDataIns := eip712.TypedData{
+	typedDataIns := apitypes.TypedData{
 		Types:       myTypes,
 		Domain:      domain,
 		PrimaryType: "OrderComponents",
@@ -507,8 +500,24 @@ func signOrder(privateKey *ecdsa.PrivateKey, order *AoriTakeOrderIntent, chainID
 	return str, nil
 }
 
-func SignTypedData(typedData *eip712.TypedData, privateKey *ecdsa.PrivateKey) ([]byte, error) {
-	rawData, err := eip712.EncodeForSigning(typedData)
+// EncodeForSigning encodes the hash that will be signed for the given EIP712 data
+func EncodeForSigning(typedData *apitypes.TypedData) ([]byte, error) {
+	domainSeparator, err := typedData.HashStruct("EIP712Domain", typedData.Domain.Map())
+	if err != nil {
+		return nil, err
+	}
+
+	typedDataHash, err := typedData.HashStruct(typedData.PrimaryType, typedData.Message)
+	if err != nil {
+		return nil, err
+	}
+
+	rawData := []byte(fmt.Sprintf("\x19\x01%s%s", string(domainSeparator), string(typedDataHash)))
+	return rawData, nil
+}
+
+func SignTypedData(typedData *apitypes.TypedData, privateKey *ecdsa.PrivateKey) ([]byte, error) {
+	rawData, err := EncodeForSigning(typedData)
 	if err != nil {
 		return nil, err
 	}

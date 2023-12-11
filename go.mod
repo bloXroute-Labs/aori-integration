@@ -4,7 +4,6 @@ go 1.20
 
 require (
 	github.com/ethereum/go-ethereum v1.13.5
-	github.com/ethersphere/bee v1.17.6
 	github.com/gorilla/websocket v1.5.0
 	github.com/joho/godotenv v1.5.1
 	google.golang.org/grpc v1.55.0
