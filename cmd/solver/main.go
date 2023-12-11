@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/FastLane-Labs/atlas-examples/entities"
+	"github.com/bloXroute-Labs/aori-integration/entities"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -24,9 +24,6 @@ func main() {
 		log.Fatalf("could not load .env file: %s", err)
 	}
 	takeOrderRequestChan := make(chan entities.TakeOrderRequest, 10)
-	//go func() {
-	//	startSendingTakeOrderDirectly(takeOrderRequestChan)
-	//}()
 
 	bundlerPrivateKey, err := crypto.ToECDSA(common.Hex2Bytes(env["BUNDLER_PK"]))
 	if err != nil {

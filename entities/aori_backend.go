@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"os"
 
-	gateway "github.com/FastLane-Labs/atlas-examples/protobuf"
-	"github.com/FastLane-Labs/atlas-examples/utils"
+	gateway "github.com/bloXroute-Labs/aori-integration/protobuf"
+	"github.com/bloXroute-Labs/aori-integration/utils"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"

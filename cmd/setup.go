@@ -37,7 +37,6 @@ func Setup() *App {
 
 	// Private keys
 	app.PrivateKeys["bundler"] = env["BUNDLER_PK"]
-	app.PrivateKeys["governance"] = env["GOVERNANCE_PK"]
 	app.PrivateKeys["user"] = env["USER_PK"]
 	app.PrivateKeys["solver"] = env["SOLVER_PK"]
 

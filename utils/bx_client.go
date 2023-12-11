@@ -3,7 +3,7 @@ package utils
 import (
 	"context"
 	"crypto/tls"
-	gateway "github.com/FastLane-Labs/atlas-examples/protobuf"
+	gateway "github.com/bloXroute-Labs/aori-integration/protobuf"
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -25,6 +25,7 @@ type RPCOpts struct {
 func DefaultRPCOpts(endpoint string) RPCOpts {
 	var ep string
 	if endpoint == "" {
+		// default port is 1809 or 5005, when running multiple gateways, typically use 500* as the second gateway and specify it as the endpoint string here
 		ep = "localhost:5005"
 	}
 	env, err := godotenv.Read(".env")
@@ -48,7 +49,7 @@ func (bc blxrCredentials) RequireTransportSecurity() bool {
 	return false
 }
 
-// NewGRPCClient connects to custom Trader API
+// NewGRPCClient connects to custom Intent Gateway
 func NewGRPCClient(opts RPCOpts, dialOpts ...grpc.DialOption) (gateway.GatewayClient, error) {
 	var (
 		conn     grpc.ClientConnInterface

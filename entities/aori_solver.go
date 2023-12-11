@@ -5,8 +5,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"github.com/FastLane-Labs/atlas-examples/protobuf"
-	"github.com/FastLane-Labs/atlas-examples/utils"
+	gateway "github.com/bloXroute-Labs/aori-integration/protobuf"
+	"github.com/bloXroute-Labs/aori-integration/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -111,7 +111,7 @@ type AoriMakeOrder struct {
 type AoriSolver struct {
 	signer        *bind.TransactOpts
 	privateKey    *ecdsa.PrivateKey
-	gatewayClient protobuf.GatewayClient
+	gatewayClient gateway.GatewayClient
 
 	// The channel where solvers receive new intent to fulfill
 	incomingAoriIntentFromGateway chan *AoriMakerOrderIntent
@@ -264,12 +264,12 @@ func (s *AoriSolver) connectToBxGateway() {
 	authHeader := os.Getenv("AUTH_HEADER")
 	ctx := context.Background()
 	metadata.AppendToOutgoingContext(ctx, "authorization", authHeader)
-	intentsStream, err := client.Intents(ctx, &protobuf.IntentsRequest{
+	intentsStream, err := client.Intents(ctx, &gateway.IntentsRequest{
 		//Filters:       fmt.Sprintf("{DappAddress} == '%s'", s.dAppAddress),
 		SolverAddress: signerAddress.String(),
 		Hash:          hash,
 		Signature:     sig,
-		AuthHeader:    authHeader}) //ToDo implement correct request. See dapp example
+		AuthHeader:    authHeader})
 
 	if err != nil {
 		s.log.Fatalf("could not subscribe to intents stream: %s", err)
@@ -380,7 +380,7 @@ func (s *AoriSolver) connectToBxGateway() {
 			}
 
 			signerAddress := crypto.PubkeyToAddress(s.privateKey.PublicKey)
-			solutionRequest := &protobuf.SubmitIntentSolutionRequest{
+			solutionRequest := &gateway.SubmitIntentSolutionRequest{
 				SolverAddress:  signerAddress.String(),
 				IntentId:       takeOrderIntent.IntentID,
 				IntentSolution: solutionBytes,

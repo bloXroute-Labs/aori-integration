@@ -1,4 +1,4 @@
-module github.com/FastLane-Labs/atlas-examples
+module github.com/bloXroute-Labs/aori-integration
 
 go 1.20
 

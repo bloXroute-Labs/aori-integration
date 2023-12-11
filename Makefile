@@ -5,10 +5,10 @@ LOCAL_IMAGE_NAME=bx-proto-gen
 .SILENT: genproto
 genproto:
 	docker run -v $(CURDIR):/go/protobuf --platform linux/amd64 $(IMAGE_NAME) \
-		protoc --go_out=. --go_opt=paths=source_relative  --go-grpc_out=. --go-grpc_opt=paths=source_relative gateway.proto
+		protoc --go_out=. --go_opt=paths=source_relative  --go-grpc_out=. --go-grpc_opt=paths=source_relative protobuf/gateway.proto
 
 GENERATE_CMD=docker run -v $(CURDIR):/go/protobuf $(LOCAL_IMAGE_NAME) \
-	protoc --go_out=. --go_opt=paths=source_relative  --go-grpc_out=. --go-grpc_opt=paths=source_relative gateway.proto
+	protoc --go_out=. --go_opt=paths=source_relative  --go-grpc_out=. --go-grpc_opt=paths=source_relative protobuf/gateway.proto
 
 .PHONY: genproto-local
 .SILENT: genproto-local
