@@ -247,7 +247,7 @@ func (s *AoriSolver) run() {
 }
 
 func (s *AoriSolver) connectToBxGateway() {
-	client, err := utils.NewGRPCClient(utils.DefaultRPCOpts(""))
+	client, err := utils.NewGRPCClient(utils.DefaultRPCOpts("localhost:5006"))
 	if err != nil {
 		s.log.Fatalf("could not connect to gateway: %s", err)
 	}
@@ -391,7 +391,12 @@ func (s *AoriSolver) connectToBxGateway() {
 
 			s.log.Printf("creating and submitting intent solution request to send to gateway for intentID %s", takeOrderIntent.IntentID)
 
-			intentSolutionReply, err := client.SubmitIntentSolution(context.Background(), solutionRequest)
+			client2, err := utils.NewGRPCClient(utils.DefaultRPCOpts("localhost:5005"))
+			if err != nil {
+				s.log.Fatalf("could not connect to gateway: %s", err)
+			}
+
+			intentSolutionReply, err := client2.SubmitIntentSolution(context.Background(), solutionRequest)
 			if err != nil {
 				s.log.Printf("could not submit intent solution to gateway: %s", err.Error())
 			}

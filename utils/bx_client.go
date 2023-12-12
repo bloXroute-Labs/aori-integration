@@ -23,10 +23,9 @@ type RPCOpts struct {
 }
 
 func DefaultRPCOpts(endpoint string) RPCOpts {
-	var ep string
 	if endpoint == "" {
 		// default port is 1809 or 5005, when running multiple gateways, typically use 500* as the second gateway and specify it as the endpoint string here
-		ep = "localhost:5005"
+		endpoint = "localhost:5005"
 	}
 	env, err := godotenv.Read(".env")
 	if err != nil {
@@ -34,7 +33,7 @@ func DefaultRPCOpts(endpoint string) RPCOpts {
 	}
 
 	return RPCOpts{
-		Endpoint:   ep,
+		Endpoint:   endpoint,
 		AuthHeader: env["AUTH_HEADER"],
 	}
 }
