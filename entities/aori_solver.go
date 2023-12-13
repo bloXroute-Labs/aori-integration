@@ -293,7 +293,9 @@ func (s *AoriSolver) connectToBxGateway() {
 
 			err = json.Unmarshal(swapIntentData.Intent, &intent.AoriMakerOrder)
 			if err != nil {
-				s.log.Fatalf("failed to unmarshal swapIntentData: %w", err.Error())
+				s.log.Printf("failed to unmarshal swapIntentData: %w", err.Error())
+				time.Sleep(time.Second)
+				continue
 			}
 
 			if intent.AoriMakerOrder.Result.Type == "OrderCreated" && intent.AoriMakerOrder.Result.Data.ChainId == 5 &&
@@ -363,20 +365,23 @@ func (s *AoriSolver) connectToBxGateway() {
 
 			signature, err := signOrder(s.privateKey, &takeOrderIntent, s.chainId)
 			if err != nil {
-				log.Fatal(err)
+				log.Printf("error when signing the order %v", err)
+				continue
 			}
 
 			takeOrderIntent.TakeOrderRequest.Params[0].Order.Signature = signature
 
 			solutionBytes, err := json.Marshal(takeOrderIntent)
 			if err != nil {
-				s.log.Fatalf("failed to marshal solution %w", err)
+				s.log.Printf("failed to marshal solution %w", err)
+				continue
 			}
 
 			solutionHash := crypto.Keccak256Hash(solutionBytes).Bytes() // need a hash to sign, so we're hashing the payload here
 			solutionSig, err := crypto.Sign(solutionHash, s.privateKey) //signing the hash
 			if err != nil {
-				s.log.Fatal("could not sign the message : %s", err)
+				s.log.Printf("could not sign the message : %s", err)
+				continue
 			}
 
 			signerAddress := crypto.PubkeyToAddress(s.privateKey.PublicKey)

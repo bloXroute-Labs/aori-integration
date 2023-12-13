@@ -164,7 +164,8 @@ func (a *AoriBackend) run() {
 			intentHash := crypto.Keccak256Hash(makeOrder).Bytes()          // need a hash to sign, so we're hashing the payload here
 			intentSig, err := crypto.Sign(intentHash, a.bundlerPrivateKey) //signing the hash
 			if err != nil {
-				log.Fatalf("could not sign the message : %s", err)
+				log.Printf("could not sign the message : %s", err)
+				continue
 			}
 
 			intentRequest := &gateway.SubmitIntentRequest{
@@ -176,7 +177,8 @@ func (a *AoriBackend) run() {
 
 			reply, err := a.gatewayClient.SubmitIntent(context.Background(), intentRequest)
 			if err != nil {
-				a.log.Fatalf("could not submit the intent : %s", err)
+				a.log.Printf("could not submit the intent : %s", err)
+				continue
 			}
 
 			a.log.Printf("intent submitted to gateway with id=%s", reply.IntentId)
@@ -186,7 +188,8 @@ func (a *AoriBackend) run() {
 				cancelHash := crypto.Keccak256Hash([]byte(reply.IntentId)).Bytes()
 				sign, err := crypto.Sign(cancelHash, a.bundlerPrivateKey)
 				if err != nil {
-					a.log.Fatalf("could not sign the intent cancellation : %s", err)
+					a.log.Printf("could not sign the intent cancellation : %s", err)
+					continue
 				}
 
 				cancelReply, err := a.gatewayClient.CancelIntent(context.Background(), &gateway.CancelIntentRequest{
@@ -197,11 +200,13 @@ func (a *AoriBackend) run() {
 					AuthHeader:  "NjFhNTEyMjItMTgyNy00YmZhLWJhM2ItZmM4NWY1ZTI4NGZlOjAxZDk0YTUxMjYxMGE2NmUzZDFjY2I4YmJlMmE0Y2E1",
 				})
 				if err != nil {
-					a.log.Fatalf("could not cancel the intent : %s", err)
+					a.log.Printf("could not cancel the intent : %s", err)
+					continue
 				}
 
 				if cancelReply.Status != "success" {
-					a.log.Fatalf("could not cancel the intent : %s", cancelReply.Reason)
+					a.log.Printf("could not cancel the intent : %s", cancelReply.Reason)
+					continue
 				}
 				a.log.Printf("intent canceled in the Gateway id=%s", reply.IntentId)
 				cancel = false
@@ -210,7 +215,8 @@ func (a *AoriBackend) run() {
 				// re-submit
 				secondReply, err := a.gatewayClient.SubmitIntent(context.Background(), intentRequest)
 				if err != nil {
-					log.Fatalf("could not submit the intent : %s", err)
+					log.Printf("could not submit the intent : %s", err)
+					continue
 				}
 				a.log.Printf("intent submitted in the Gateway id=%s", secondReply.IntentId)
 			}
@@ -235,7 +241,8 @@ func (a *AoriBackend) run() {
 			a.log.Printf("sending solution payload to aori %s", string(b))
 			err := a.wsTakeOrderConn.WriteMessage(websocket.TextMessage, b)
 			if err != nil {
-				a.log.Fatal(err)
+				a.log.Printf("got an error when sending take order %v", err)
+				continue
 			}
 
 			a.log.Printf("sent a take aori order %s", solution.IntentID)
@@ -277,14 +284,16 @@ func (a *AoriBackend) connectToBxGateway() {
 		for {
 			solutionData, err := stream.Recv()
 			if err != nil {
-				a.log.Fatalf("intents solution stream connection error: %s", err)
+				a.log.Printf("intents solution stream connection error: %s", err)
+				continue
 			}
 
 			solution := &AoriTakeOrderIntent{}
 
 			err = json.Unmarshal(solutionData.IntentSolution, solution)
 			if err != nil {
-				a.log.Fatalf("failed to unmarshal intent solution data")
+				a.log.Printf("failed to unmarshal intent solution data")
+				continue
 			}
 
 			a.log.Printf("intent solution received from gateway for intentID=%s, intentCount=%d",
@@ -297,7 +306,7 @@ func (a *AoriBackend) connectToBxGateway() {
 	}()
 }
 
-func (a *AoriBackend) sendTakeOrders(aoriTakeOrdersRequest TakeOrderRequest) {
+func (a *AoriBackend) sendTakeOrders() {
 	go func() {
 		for {
 			_, msg, err := a.wsTakeOrderConn.ReadMessage()
