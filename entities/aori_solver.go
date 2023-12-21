@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
-	"google.golang.org/grpc/metadata"
 	"log"
 	"math/big"
 	"math/rand"
@@ -247,7 +246,7 @@ func (s *AoriSolver) run() {
 }
 
 func (s *AoriSolver) connectToBxGateway() {
-	client, err := utils.NewGRPCClient(utils.DefaultRPCOpts("localhost:5006"))
+	client, err := utils.NewGRPCClient(utils.DefaultRPCOpts("54.254.48.158:5005"))
 	if err != nil {
 		s.log.Fatalf("could not connect to gateway: %s", err)
 	}
@@ -261,15 +260,15 @@ func (s *AoriSolver) connectToBxGateway() {
 	}
 
 	// this context is in place to not have duplicate requests between solvers
-	authHeader := os.Getenv("AUTH_HEADER")
-	ctx := context.Background()
-	metadata.AppendToOutgoingContext(ctx, "authorization", authHeader)
-	intentsStream, err := client.Intents(ctx, &gateway.IntentsRequest{
-		//Filters:       fmt.Sprintf("{DappAddress} == '%s'", s.dAppAddress),
+	//authHeader := os.Getenv("AUTH_HEADER")
+	//ctx := context.Background()
+	//metadata.AppendToOutgoingContext(ctx, "authorization", authHeader)
+	intentsStream, err := client.Intents(context.Background(), &gateway.IntentsRequest{
+		// Filters:       fmt.Sprintf("{DappAddress} == '%s'", s.dAppAddress),
 		SolverAddress: signerAddress.String(),
 		Hash:          hash,
-		Signature:     sig,
-		AuthHeader:    authHeader})
+		Signature:     sig})
+	//AuthHeader:    authHeader})
 
 	if err != nil {
 		s.log.Fatalf("could not subscribe to intents stream: %s", err)
@@ -280,6 +279,7 @@ func (s *AoriSolver) connectToBxGateway() {
 	go func() {
 		for {
 			swapIntentData, err := intentsStream.Recv()
+			s.log.Printf("received intent from gateway")
 
 			if err != nil {
 				s.log.Printf("error receiving an intent from gateway intent stream: %s", err)
@@ -386,17 +386,17 @@ func (s *AoriSolver) connectToBxGateway() {
 				IntentSolution: solutionBytes,
 				Hash:           solutionHash,
 				Signature:      solutionSig,
-				AuthHeader:     os.Getenv("AUTH_HEADER"),
+				//AuthHeader:     os.Getenv("AUTH_HEADER"),
 			}
 
 			s.log.Printf("creating and submitting intent solution request to send to gateway for intentID %s", takeOrderIntent.IntentID)
 
-			client2, err := utils.NewGRPCClient(utils.DefaultRPCOpts("localhost:5005"))
-			if err != nil {
-				s.log.Fatalf("could not connect to gateway: %s", err)
-			}
+			//client2, err := utils.NewGRPCClient(utils.DefaultRPCOpts("localhost:5005"))
+			//if err != nil {
+			//	s.log.Fatalf("could not connect to gateway: %s", err)
+			//}
 
-			intentSolutionReply, err := client2.SubmitIntentSolution(context.Background(), solutionRequest)
+			intentSolutionReply, err := client.SubmitIntentSolution(context.Background(), solutionRequest)
 			if err != nil {
 				s.log.Printf("could not submit intent solution to gateway: %s", err.Error())
 			}

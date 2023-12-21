@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
+	"github.com/bloXroute-Labs/aori-integration/utils"
 	"github.com/gorilla/websocket"
 	"log"
 	"math/big"
@@ -11,7 +12,6 @@ import (
 	"os"
 
 	gateway "github.com/bloXroute-Labs/aori-integration/protobuf"
-	"github.com/bloXroute-Labs/aori-integration/utils"
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -90,7 +90,7 @@ func NewAoriBackend(pk string, chainId int64, makeOrderChan chan []byte, shutdow
 
 func (a *AoriBackend) GenerateMakeOrder(broadcastMakerOrdersChan chan []byte) {
 
-	a.log.Printf("generating an aori make order")
+	//a.log.Printf("generating an aori make order")
 
 	b := "{ \"id\": 12, \"jsonrpc\": \"2.0\", \"method\": \"aori_subscribeOrderbook\",\"params\": []}"
 	err := a.wsFeedConn.WriteMessage(websocket.TextMessage, []byte(b))
@@ -107,7 +107,7 @@ func (a *AoriBackend) GenerateMakeOrder(broadcastMakerOrdersChan chan []byte) {
 			continue
 		}
 
-		a.log.Printf("event from aori = %s", msg)
+		//a.log.Printf("event from aori = %s", msg)
 
 		var order AoriMakeOrder
 		//var intent AoriMakerOrderIntent
@@ -156,10 +156,12 @@ func (a *AoriBackend) run() {
 	a.connectToBxGateway()
 
 	for {
-		cancel := false
+		//cancel := false
 
 		select {
 		case makeOrder := <-a.makeOrderFromAoriChan:
+			a.log.Printf("received a make order from aori")
+
 			// this swap intent is coming from the user "makeOrderIntentsReceive" chan
 			intentHash := crypto.Keccak256Hash(makeOrder).Bytes()          // need a hash to sign, so we're hashing the payload here
 			intentSig, err := crypto.Sign(intentHash, a.bundlerPrivateKey) //signing the hash
@@ -174,6 +176,8 @@ func (a *AoriBackend) run() {
 				Signature:   intentSig,
 			}
 
+			a.log.Printf("submitting intent with hash %b", intentHash)
+
 			reply, err := a.gatewayClient.SubmitIntent(context.Background(), intentRequest)
 			if err != nil {
 				a.log.Fatalf("could not submit the intent : %s", err)
@@ -181,39 +185,39 @@ func (a *AoriBackend) run() {
 
 			a.log.Printf("intent submitted to gateway with id=%s", reply.IntentId)
 
-			if cancel {
-				//cancel right away for testing
-				cancelHash := crypto.Keccak256Hash([]byte(reply.IntentId)).Bytes()
-				sign, err := crypto.Sign(cancelHash, a.bundlerPrivateKey)
-				if err != nil {
-					a.log.Fatalf("could not sign the intent cancellation : %s", err)
-				}
-
-				cancelReply, err := a.gatewayClient.CancelIntent(context.Background(), &gateway.CancelIntentRequest{
-					DappAddress: a.dappAddress.String(),
-					IntentId:    reply.IntentId,
-					Hash:        cancelHash,
-					Signature:   sign,
-					AuthHeader:  "NjFhNTEyMjItMTgyNy00YmZhLWJhM2ItZmM4NWY1ZTI4NGZlOjAxZDk0YTUxMjYxMGE2NmUzZDFjY2I4YmJlMmE0Y2E1",
-				})
-				if err != nil {
-					a.log.Fatalf("could not cancel the intent : %s", err)
-				}
-
-				if cancelReply.Status != "success" {
-					a.log.Fatalf("could not cancel the intent : %s", cancelReply.Reason)
-				}
-				a.log.Printf("intent canceled in the Gateway id=%s", reply.IntentId)
-				cancel = false
-				time.Sleep(time.Second)
-
-				// re-submit
-				secondReply, err := a.gatewayClient.SubmitIntent(context.Background(), intentRequest)
-				if err != nil {
-					log.Fatalf("could not submit the intent : %s", err)
-				}
-				a.log.Printf("intent submitted in the Gateway id=%s", secondReply.IntentId)
-			}
+			//if cancel {
+			//	//cancel right away for testing
+			//	cancelHash := crypto.Keccak256Hash([]byte(reply.IntentId)).Bytes()
+			//	sign, err := crypto.Sign(cancelHash, a.bundlerPrivateKey)
+			//	if err != nil {
+			//		a.log.Fatalf("could not sign the intent cancellation : %s", err)
+			//	}
+			//
+			//	cancelReply, err := a.gatewayClient.CancelIntent(context.Background(), &gateway.CancelIntentRequest{
+			//		DappAddress: a.dappAddress.String(),
+			//		IntentId:    reply.IntentId,
+			//		Hash:        cancelHash,
+			//		Signature:   sign,
+			//		AuthHeader:  "NjFhNTEyMjItMTgyNy00YmZhLWJhM2ItZmM4NWY1ZTI4NGZlOjAxZDk0YTUxMjYxMGE2NmUzZDFjY2I4YmJlMmE0Y2E1",
+			//	})
+			//	if err != nil {
+			//		a.log.Fatalf("could not cancel the intent : %s", err)
+			//	}
+			//
+			//	if cancelReply.Status != "success" {
+			//		a.log.Fatalf("could not cancel the intent : %s", cancelReply.Reason)
+			//	}
+			//	a.log.Printf("intent canceled in the Gateway id=%s", reply.IntentId)
+			//	cancel = false
+			//	time.Sleep(time.Second)
+			//
+			//	// re-submit
+			//	secondReply, err := a.gatewayClient.SubmitIntent(context.Background(), intentRequest)
+			//	if err != nil {
+			//		log.Fatalf("could not submit the intent : %s", err)
+			//	}
+			//	a.log.Printf("intent submitted in the Gateway id=%s", secondReply.IntentId)
+			//}
 
 		case solution := <-a.solutionChannel:
 			a.log.Println("received a take order intent solution with intent id: %s", solution.IntentID)
@@ -251,7 +255,9 @@ func (a *AoriBackend) run() {
 func (a *AoriBackend) connectToBxGateway() {
 	a.log.Printf("connecting to the gateway")
 	var err error
-	a.gatewayClient, err = utils.NewGRPCClient(utils.DefaultRPCOpts(""))
+	//a.gatewayClient, err = utils.NewGRPCClient(utils.DefaultRPCOpts("54.144.86.226:5005"))
+	a.gatewayClient, err = utils.NewGRPCClient(utils.DefaultRPCOpts("3.74.153.37:5005"))
+
 	if err != nil {
 		a.log.Fatalf("could not connect to gateway: %s", err)
 	}
@@ -266,7 +272,7 @@ func (a *AoriBackend) connectToBxGateway() {
 		DappAddress: a.dappAddress.String(),
 		Hash:        hash,
 		Signature:   sig,
-		AuthHeader:  "NjFhNTEyMjItMTgyNy00YmZhLWJhM2ItZmM4NWY1ZTI4NGZlOjAxZDk0YTUxMjYxMGE2NmUzZDFjY2I4YmJlMmE0Y2E1",
+		//AuthHeader:  "NjFhNTEyMjItMTgyNy00YmZhLWJhM2ItZmM4NWY1ZTI4NGZlOjAxZDk0YTUxMjYxMGE2NmUzZDFjY2I4YmJlMmE0Y2E1",
 	})
 
 	if err != nil {

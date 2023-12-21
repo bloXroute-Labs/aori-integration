@@ -41,9 +41,8 @@ type GatewayClient interface {
 	ProposedBlockStats(ctx context.Context, in *ProposedBlockStatsRequest, opts ...grpc.CallOption) (*ProposedBlockStatsReply, error)
 	BlxrSubmitBundle(ctx context.Context, in *BlxrSubmitBundleRequest, opts ...grpc.CallOption) (*BlxrSubmitBundleReply, error)
 	SubmitBeaconBlockSSZ(ctx context.Context, in *SubmitBeaconBlockSSZRequest, opts ...grpc.CallOption) (*SubmitBeaconBlockSSZReply, error)
-	// Intent Gateway functions
+	//Intent Gateway functions
 	SubmitIntent(ctx context.Context, in *SubmitIntentRequest, opts ...grpc.CallOption) (*SubmitIntentReply, error)
-	CancelIntent(ctx context.Context, in *CancelIntentRequest, opts ...grpc.CallOption) (*CancelIntentReply, error)
 	SubmitIntentSolution(ctx context.Context, in *SubmitIntentSolutionRequest, opts ...grpc.CallOption) (*SubmitIntentSolutionReply, error)
 	Intents(ctx context.Context, in *IntentsRequest, opts ...grpc.CallOption) (Gateway_IntentsClient, error)
 	IntentSolutions(ctx context.Context, in *IntentSolutionsRequest, opts ...grpc.CallOption) (Gateway_IntentSolutionsClient, error)
@@ -411,15 +410,6 @@ func (c *gatewayClient) SubmitIntent(ctx context.Context, in *SubmitIntentReques
 	return out, nil
 }
 
-func (c *gatewayClient) CancelIntent(ctx context.Context, in *CancelIntentRequest, opts ...grpc.CallOption) (*CancelIntentReply, error) {
-	out := new(CancelIntentReply)
-	err := c.cc.Invoke(ctx, "/gateway.Gateway/CancelIntent", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *gatewayClient) SubmitIntentSolution(ctx context.Context, in *SubmitIntentSolutionRequest, opts ...grpc.CallOption) (*SubmitIntentSolutionReply, error) {
 	out := new(SubmitIntentSolutionReply)
 	err := c.cc.Invoke(ctx, "/gateway.Gateway/SubmitIntentSolution", in, out, opts...)
@@ -520,9 +510,8 @@ type GatewayServer interface {
 	ProposedBlockStats(context.Context, *ProposedBlockStatsRequest) (*ProposedBlockStatsReply, error)
 	BlxrSubmitBundle(context.Context, *BlxrSubmitBundleRequest) (*BlxrSubmitBundleReply, error)
 	SubmitBeaconBlockSSZ(context.Context, *SubmitBeaconBlockSSZRequest) (*SubmitBeaconBlockSSZReply, error)
-	// Intent Gateway functions
+	//Intent Gateway functions
 	SubmitIntent(context.Context, *SubmitIntentRequest) (*SubmitIntentReply, error)
-	CancelIntent(context.Context, *CancelIntentRequest) (*CancelIntentReply, error)
 	SubmitIntentSolution(context.Context, *SubmitIntentSolutionRequest) (*SubmitIntentSolutionReply, error)
 	Intents(*IntentsRequest, Gateway_IntentsServer) error
 	IntentSolutions(*IntentSolutionsRequest, Gateway_IntentSolutionsServer) error
@@ -604,9 +593,6 @@ func (UnimplementedGatewayServer) SubmitBeaconBlockSSZ(context.Context, *SubmitB
 }
 func (UnimplementedGatewayServer) SubmitIntent(context.Context, *SubmitIntentRequest) (*SubmitIntentReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SubmitIntent not implemented")
-}
-func (UnimplementedGatewayServer) CancelIntent(context.Context, *CancelIntentRequest) (*CancelIntentReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CancelIntent not implemented")
 }
 func (UnimplementedGatewayServer) SubmitIntentSolution(context.Context, *SubmitIntentSolutionRequest) (*SubmitIntentSolutionReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SubmitIntentSolution not implemented")
@@ -1080,24 +1066,6 @@ func _Gateway_SubmitIntent_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Gateway_CancelIntent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CancelIntentRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(GatewayServer).CancelIntent(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/gateway.Gateway/CancelIntent",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(GatewayServer).CancelIntent(ctx, req.(*CancelIntentRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Gateway_SubmitIntentSolution_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(SubmitIntentSolutionRequest)
 	if err := dec(in); err != nil {
@@ -1236,10 +1204,6 @@ var Gateway_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SubmitIntent",
 			Handler:    _Gateway_SubmitIntent_Handler,
-		},
-		{
-			MethodName: "CancelIntent",
-			Handler:    _Gateway_CancelIntent_Handler,
 		},
 		{
 			MethodName: "SubmitIntentSolution",
